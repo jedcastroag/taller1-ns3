@@ -226,19 +226,26 @@ int main(int argc, char *argv[])
   onoff.SetAttribute ("PacketSize", UintegerValue (packetSize));
   onoff.SetAttribute ("DataRate", StringValue ("50Mbps")); //bit/s
 
-
-  InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), 80);
+  /*InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), 80);
   recvSink->Bind(local);
-  recvSink->SetRecvCallback(MakeCallback(&ReceivePacket));
+  recvSink->SetRecvCallback(MakeCallback(&ReceivePacket));*/
 
   Ptr<Socket> source = Socket::CreateSocket(c.Get(sourceNode), tid);
   InetSocketAddress remote = InetSocketAddress(i.GetAddress(sinkNode, 0), 80);
   source->Connect(remote);
-  // ApplicationContainer apps;
-  // onoff.SetAttribute ("Remote", i.GetAddress(sinkNode, 0));
-  // apps.Add(onoff.Install(c.Get(sourceNode)));
-  // apps.Start (Seconds (1.0));
-  // apps.Stop (Seconds (5));
+
+  Address LocalAddress (InetSocketAddress(Ipv4Address::GetAny(), 80));
+  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", LocalAddress);
+  ApplicationContainer recvapp = packetSinkHelper.Install(c.Get(1));
+  recvapp.Start (Seconds (1.0));
+  recvapp.Stop (Seconds (5));
+
+
+  ApplicationContainer apps;
+  //onoff.SetAttribute ("Remote", i.GetAddress(sinkNode, 0));
+  apps.Add(onoff.Install(c.Get(sourceNode)));
+  apps.Start (Seconds (1.0));
+  apps.Stop (Seconds (5));
 
   if (tracing == true)
   {

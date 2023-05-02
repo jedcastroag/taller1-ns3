@@ -235,6 +235,7 @@ int main(int argc, char *argv[])
   InetSocketAddress rmt (InetSocketAddress(Ipv4Address::GetAny(), 80));
   AddressValue remoteAddress (rmt);
   Address LocalAddress (rmt);
+  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", LocalAddress);
   ApplicationContainer recvapp = packetSinkHelper.Install(c.Get(1));
   recvapp.Start (Seconds (1.0));
   recvapp.Stop (Seconds (10));

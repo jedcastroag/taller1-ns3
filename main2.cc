@@ -1,4 +1,3 @@
-
 #include "ns3/command-line.h"
 #include "ns3/string.h"
 #include "ns3/yans-wifi-helper.h"
@@ -44,6 +43,8 @@ main (int argc, char *argv[])
   uint32_t lanNodes = 2;
   uint32_t stopTime = 20;
   bool useCourseChangeCallback = false;
+  double meanPacketsPerSecond = 10;
+  uint32_t packetSize = 1000; // bytes
 
   //
   // Simulation defaults are typically set next, before command line
@@ -237,8 +238,16 @@ main (int argc, char *argv[])
   // Let's fetch the IP address of the last node, which is on Ipv4Interface 1
   Ipv4Address remoteAddr = appSink->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
 
+  Ptr<RandomVariableStream> interPacketIntervalStream = CreateObject<ExponentialRandomVariable>();
+  interPacketIntervalStream->SetAttribute("Mean", DoubleValue(1.0 / meanPacketsPerSecond));
+
   OnOffHelper onoff ("ns3::UdpSocketFactory",
                      Address (InetSocketAddress (remoteAddr, port)));
+  onoff.SetAttribute("OnTime", PointerValue(CreateObject<ConstantRandomVariable>()));
+  onoff.SetAttribute("OffTime", PointerValue(interPacketIntervalStream));
+  onoff.SetAttribute ("PacketSize", UintegerValue (packetSize));
+  onoff.SetAttribute ("DataRate", StringValue ("50Mbps")); //bit/s
+
 
   ApplicationContainer apps = onoff.Install (appSource);
   apps.Start (Seconds (3));

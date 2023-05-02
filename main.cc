@@ -37,7 +37,7 @@
 // There are a number of command-line options available to control
 // the default behavior.  The list of available command-line options
 // can be listed with the following command:
-// ./waf --run "wifi-simple-adhoc-grid --help"
+// ./waf --run "taller1 --help"
 //
 // Note that all ns-3 attributes (not just the ones exposed in the below
 // script) can be changed at command line; see the ns-3 documentation.
@@ -47,26 +47,26 @@
 // the default of 500m.
 // To see this effect, try running:
 //
-// ./waf --run "wifi-simple-adhoc-grid --distance=500"
-// ./waf --run "wifi-simple-adhoc-grid --distance=1000"
-// ./waf --run "wifi-simple-adhoc-grid --distance=1500"
+// ./waf --run "taller1 --distance=500"
+// ./waf --run "taller1 --distance=1000"
+// ./waf --run "taller1 --distance=1500"
 //
 // The source node and sink node can be changed like this:
 //
-// ./waf --run "wifi-simple-adhoc-grid --sourceNode=20 --sinkNode=10"
+// ./waf --run "taller1 --sourceNode=20 --sinkNode=10"
 //
 // This script can also be helpful to put the Wifi layer into verbose
 // logging mode; this command will turn on all wifi logging:
 //
-// ./waf --run "wifi-simple-adhoc-grid --verbose=1"
+// ./waf --run "taller1 --verbose=1"
 //
 // By default, trace file writing is off-- to enable it, try:
-// ./waf --run "wifi-simple-adhoc-grid --tracing=1"
+// ./waf --run "taller1 --tracing=1"
 //
 // When you are done tracing, you will notice many pcap trace files
 // in your directory.  If you have tcpdump installed, you can try this:
 //
-// tcpdump -r wifi-simple-adhoc-grid-0-0.pcap -nn -tt
+// tcpdump -r taller1-0-0.pcap -nn -tt
 //
 
 #include "ns3/command-line.h"
@@ -90,6 +90,8 @@
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/random-variable-stream.h"
+#include "ns3/flow-monitor.h"
+#include "ns3/flow-monitor-helper.h"
 
 
 using namespace ns3;
@@ -121,6 +123,8 @@ static void GenerateTraffic(Ptr<Socket> socket, uint32_t pktSize,
 
 int main(int argc, char *argv[])
 {
+  LogComponentEnable ( "OnOffApplication" , LOG_LEVEL_INFO) ;
+  // LogComponentEnable ( "UdpApplication" , LOG_LEVEL_INFO) ;
   std::string phyMode("DsssRate1Mbps");
   double distance = 125;      // m
   uint32_t packetSize = 1000; // bytes
@@ -130,7 +134,7 @@ int main(int argc, char *argv[])
   uint32_t sourceNode = 24;
   double interval = 1.0; // seconds
   bool verbose = false;
-  bool tracing = false;
+  bool tracing = true;
   double meanPacketsPerSecond = 10; // Poisson arrival rate
   
 
@@ -148,6 +152,8 @@ int main(int argc, char *argv[])
   cmd.Parse(argc, argv);
   // Convert to time object
   Time interPacketInterval = Seconds(interval);
+
+
 
   // Fix non-unicast data rate to be the same as that of unicast
   Config::SetDefault("ns3::WifiRemoteStationManager::NonUnicastMode",
@@ -192,7 +198,7 @@ int main(int argc, char *argv[])
   MobilityHelper mobility;
   mobility.SetPositionAllocator(posAlloc);
   mobility.SetMobilityModel("ns3::RandomWaypointMobilityModel", 
-                            "Speed", StringValue ("ns3::UniformRandomVariable[Min=0|Max=60]"),
+                            "Speed", StringValue ("ns3::UniformRandomVariable[Min=0|Max=1]"),
                             "Pause", StringValue ("ns3::ConstantRandomVariable[Constant=0.0]"),
                             "PositionAllocator", PointerValue(posAlloc));
   mobility.Install(c);
@@ -219,51 +225,45 @@ int main(int argc, char *argv[])
   
   Ptr<RandomVariableStream> interPacketIntervalStream = CreateObject<ExponentialRandomVariable>();
   interPacketIntervalStream->SetAttribute("Mean", DoubleValue(1.0 / meanPacketsPerSecond));
-  Ptr<Socket> recvSink = Socket::CreateSocket(c.Get(sinkNode), tid);
+  // Ptr<Socket> recvSink = Socket::CreateSocket(c.Get(sinkNode), tid);
   OnOffHelper onoff (socketType, Ipv4Address::GetAny ());
   onoff.SetAttribute("OnTime", PointerValue(CreateObject<ConstantRandomVariable>()));
   onoff.SetAttribute("OffTime", PointerValue(interPacketIntervalStream));
   onoff.SetAttribute ("PacketSize", UintegerValue (packetSize));
   onoff.SetAttribute ("DataRate", StringValue ("50Mbps")); //bit/s
 
-  /*InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), 80);
-  recvSink->Bind(local);
-  recvSink->SetRecvCallback(MakeCallback(&ReceivePacket));*/
-
-  Ptr<Socket> source = Socket::CreateSocket(c.Get(sourceNode), tid);
-  InetSocketAddress remote = InetSocketAddress(i.GetAddress(sinkNode, 0), 80);
-  source->Connect(remote);
-
-  Address LocalAddress (InetSocketAddress(Ipv4Address::GetAny(), 80));
-  PacketSinkHelper packetSinkHelper ("ns3::TcpSocketFactory", LocalAddress);
+  InetSocketAddress rmt (InetSocketAddress(Ipv4Address::GetAny(), 80));
+  AddressValue remoteAddress (rmt);
+  Address LocalAddress (rmt);
   ApplicationContainer recvapp = packetSinkHelper.Install(c.Get(1));
   recvapp.Start (Seconds (1.0));
-  recvapp.Stop (Seconds (5));
+  recvapp.Stop (Seconds (10));
 
 
   ApplicationContainer apps;
-  //onoff.SetAttribute ("Remote", i.GetAddress(sinkNode, 0));
+  onoff.SetAttribute ("Remote", remoteAddress);
   apps.Add(onoff.Install(c.Get(sourceNode)));
-  apps.Start (Seconds (1.0));
-  apps.Stop (Seconds (5));
+  apps.Start (Seconds (2.0));
+  apps.Stop (Seconds (10));
 
   if (tracing == true)
   {
     AsciiTraceHelper ascii;
-    wifiPhy.EnableAsciiAll(ascii.CreateFileStream("wifi-simple-adhoc-grid.tr"));
-    wifiPhy.EnablePcap("wifi-simple-adhoc-grid", devices);
+    wifiPhy.EnableAsciiAll(ascii.CreateFileStream("taller1.tr"));
+    wifiPhy.EnablePcap("taller1", devices);
     // Trace routing tables
-    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>("wifi-simple-adhoc-grid.routes", std::ios::out);
+    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>("taller1.routes", std::ios::out);
     olsr.PrintRoutingTableAllEvery(Seconds(2), routingStream);
-    Ptr<OutputStreamWrapper> neighborStream = Create<OutputStreamWrapper>("wifi-simple-adhoc-grid.neighbors", std::ios::out);
+    Ptr<OutputStreamWrapper> neighborStream = Create<OutputStreamWrapper>("taller1.neighbors", std::ios::out);
     olsr.PrintNeighborCacheAllEvery(Seconds(2), neighborStream);
+
+    MobilityHelper::EnableAsciiAll (ascii.CreateFileStream ("taller1.mob"));
 
     // To do-- enable an IP-level trace that shows forwarding events only
   }
-
-  // Give OLSR time to converge-- 30 seconds perhaps
-  Simulator::Schedule(Seconds(30.0), &GenerateTraffic,
-                      source, packetSize, numPackets, interPacketInterval);
+  Ptr<FlowMonitor> flowMonitor;
+  FlowMonitorHelper flowHelper;
+  flowMonitor = flowHelper.InstallAll();
 
   // Output what we are doing
   NS_LOG_UNCOND("Testing from node " << sourceNode << " to " << sinkNode << " with grid distance " << distance);
@@ -277,8 +277,10 @@ int main(int argc, char *argv[])
     anim.SetConstantPosition(c.Get(i), distance * col, distance * row);
   }
 
+
   Simulator::Stop(Seconds(33.0));
   Simulator::Run();
+  flowMonitor->SerializeToXmlFile("third.xml", true, true);
   Simulator::Destroy();
 
   return 0;

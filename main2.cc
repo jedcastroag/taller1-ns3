@@ -38,20 +38,12 @@ main (int argc, char *argv[])
   // First, we declare and initialize a few local variables that control some
   // simulation parameters.
   //
-  uint32_t backboneNodes = 10;
-  uint32_t infraNodes = 2;
-  uint32_t lanNodes = 2;
+  uint32_t backboneNodes = 6;
+  uint32_t infraNodes = 6;
   uint32_t stopTime = 20;
   bool useCourseChangeCallback = false;
   double meanPacketsPerSecond = 10;
   uint32_t packetSize = 1000; // bytes
-
-  //
-  // Simulation defaults are typically set next, before command line
-  // arguments are parsed.
-  //
-  Config::SetDefault ("ns3::OnOffApplication::PacketSize", StringValue ("1472"));
-  Config::SetDefault ("ns3::OnOffApplication::DataRate", StringValue ("100kb/s"));
 
   //
   // For convenience, we add the local variables to the command line argument
@@ -61,7 +53,6 @@ main (int argc, char *argv[])
   CommandLine cmd (__FILE__);
   cmd.AddValue ("backboneNodes", "number of backbone nodes", backboneNodes);
   cmd.AddValue ("infraNodes", "number of leaf nodes", infraNodes);
-  cmd.AddValue ("lanNodes", "number of LAN nodes", lanNodes);
   cmd.AddValue ("stopTime", "simulation stop time (seconds)", stopTime);
   cmd.AddValue ("useCourseChangeCallback", "whether to enable course change tracing", useCourseChangeCallback);
 
@@ -219,16 +210,10 @@ main (int argc, char *argv[])
 
   // Create the OnOff application to send UDP datagrams of size
   // 210 bytes at a rate of 10 Kb/s, between two nodes
-  // We'll send data from the first wired LAN node on the first wired LAN
-  // to the last wireless STA on the last infrastructure net, thereby
-  // causing packets to traverse CSMA to adhoc to infrastructure links
 
   NS_LOG_INFO ("Create Applications.");
   uint16_t port = 9;   // Discard port (RFC 863)
 
-  // Let's make sure that the user does not define too few nodes
-  // to make this example work.  We need lanNodes > 1  and infraNodes > 1
-  NS_ASSERT (lanNodes > 1 && infraNodes > 1);
   // We want the source to be the first node created outside of the backbone
   // Conveniently, the variable "backboneNodes" holds this node index value
   Ptr<Node> appSource = NodeList::GetNode (backboneNodes);
